@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from db_report.models.es_datanode_report import EsDatanodeReport
+from db_report.models import EsDatanodeReport
 from django.utils.translation import gettext as _
 from rest_framework import serializers, status
 

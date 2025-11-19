@@ -5,7 +5,7 @@ from configuration.models import DBAdministrator
 from db_meta.enums import InstanceRole, MachineType
 from db_meta.models import AppCache, Machine
 from db_report.enums import ReportStateType
-from db_report.models.es_datanode_report import EsDataNodeReport
+from db_report.models import EsDatanodeReport
 
 from backend.configuration.constants import DBType
 from backend.db_meta.models import Cluster
@@ -61,7 +61,7 @@ def check_es_datanode():
             msg += f", cold idc affinity is {max(counter_idc_cold.values())}"
 
         try:
-            EsDataNodeReport.objects.create(
+            EsDatanodeReport.objects.create(
                 bk_biz_id=cluster.bk_biz_id,
                 bk_cloud_id=cluster.bk_cloud_id,
                 state=state,

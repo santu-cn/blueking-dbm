@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("db_report", "0022_affinitycheckreport"),
+        ("db_report", "0024_metacheckreport_db_report_m_subtype_2272a8_idx"),
     ]
 
     operations = [
