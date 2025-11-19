@@ -55,6 +55,14 @@ class ReportType(StrStructuredEnum):
     SQLSERVER_LINK_SERVER_SYNC_CHECK = EnumField("sqlserver_link_server_sync_check", _("业务Linkserver的同步巡检"))
     SQLSERVER_USER_SYNC_CHECK = EnumField("sqlserver_user_sync_check", _("业务账号同步巡检"))
 
+    # ES
+    ES_STATUS_CHECK = EnumField("es_status_check", _("ES集群状态巡检"))
+    ES_VERSION_CHECK = EnumField("es_version_check", _("ES集群版本巡检"))
+    ES_DATANODE_CHECK = EnumField("es_datanode_check", _("ES集群数据节点亲合度巡检"))
+    ES_MASTER_CHECK = EnumField("es_master_check", _("ES集群master节点巡检"))
+    ES_DOMAIN_CHECK = EnumField("es_domain_check", _("ES集群域名巡检"))
+    ES_ACCOUNT_CHECK = EnumField("es_account_check", _("ES集群账户巡检"))
+
 
 class ReportStateType(StrStructuredEnum):
     NORMAL = EnumField("normal", _("正常"))
