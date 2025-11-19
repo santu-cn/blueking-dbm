@@ -14,21 +14,27 @@ import threading
 import uuid
 from typing import List
 
+from celery.schedules import crontab
 from django.db import transaction
 
+from backend.components.bkmonitorv3.client import BKMonitorV3EventApi
 from backend.db_meta.enums import ClusterType
 from backend.db_meta.models import Cluster
+from backend.db_monitor.constants import MonitorEventType
+from backend.db_monitor.dataclass import BaseEventBody, MonitorEvent
 from backend.db_monitor.models import (
     MySQLDBHAAutofixTicketPriority,
     MySQLDBHAAutofixTicketStageQueue,
     MySQLDBHAEvent,
     TicketQueueUncommitStatus,
 )
+from backend.db_periodic_task.local_tasks import register_periodic_task
 from backend.db_periodic_task.local_tasks.mysql_autofix.dbha import static_validate, tendbcluster, tendbha
 from backend.db_periodic_task.local_tasks.mysql_autofix.dbha.aggregate_events import aggregate_events
 from backend.db_periodic_task.local_tasks.mysql_autofix.dbha.commit_ticket import commit_ticket
 from backend.db_periodic_task.local_tasks.mysql_autofix.dbha.consts import AF_TICKET_RUNNING
 from backend.db_periodic_task.local_tasks.mysql_autofix.dbha.filter_ready_event import filter_ready_events
+from backend.ticket.constants import TicketStatus
 from backend.ticket.models import Ticket
 
 logger = logging.getLogger("celery")
@@ -36,23 +42,60 @@ logger = logging.getLogger("celery")
 mysql_dbha_af_schedule_lock = threading.Lock()
 
 
-# @register_periodic_task(run_every=crontab(minute="*"))
+@register_periodic_task(run_every=crontab(minute="*"))
 def mysql_dbha_af_tracking_tickets():
     """
     跟踪单据状态
     没必要开事务, 因为只有一次迭代求值
     """
-    af_tickets = MySQLDBHAAutofixTicketStageQueue.objects.only("ticket_id", "status").filter(
+    af_tickets = MySQLDBHAAutofixTicketStageQueue.objects.only("ticket_id", "status", "cluster_id").filter(
         status__in=AF_TICKET_RUNNING
     )
+
+    need_warning: List[MySQLDBHAAutofixTicketStageQueue] = []
     for aftk in af_tickets:
         tk = Ticket.objects.get(pk=aftk.ticket_id)
-        aftk.status = tk.status
-        aftk.save(update_fields=["status"])
+
+        tracked_status = aftk.status
+        current_status = tk.status
+
+        # 只有状态变化了才更新, 省点 qps
+        if tracked_status != current_status:
+            aftk.status = tk.status
+            aftk.save(update_fields=["status"])
+
+            # 如果单据状态变成了 failed
+            if current_status == TicketStatus.FAILED:
+                need_warning.append(aftk)
+
+    monitor_events = []
+    for failed_tk in need_warning:
+        cluster_obj = Cluster.objects.get(pk=failed_tk.cluster_id)
+
+        monitor_events.append(
+            MonitorEvent(
+                event_name=MonitorEventType.MYSQL_DBHA_AUTOFIX_TICKET_FAILED,
+                target=cluster_obj.immute_domain,
+                event=BaseEventBody(
+                    content=f"{cluster_obj.immute_domain} {failed_tk.machine_type} autofix ticket failed"
+                ),
+                dimension={
+                    "appid": cluster_obj.bk_biz_id,
+                    "cluster_domain": cluster_obj.immute_domain,
+                    "cluster_type": cluster_obj.cluster_type,
+                    "bk_cloud_id": cluster_obj.bk_cloud_id,
+                    "machine_type": failed_tk.machine_type,
+                    "ticket_id": failed_tk.ticket_id,
+                },
+                timestamp=0,
+            )
+        )
+
+    if monitor_events:
+        BKMonitorV3EventApi.send_event(events=monitor_events)
 
 
-# @transaction.atomic
-# @register_periodic_task(run_every=crontab(minute="*"))
+@register_periodic_task(run_every=crontab(minute="*"))
 def mysql_dbha_af_commiter():
     """
     这个函数理论上还挺快的, 应该可以开个事务
@@ -123,7 +166,7 @@ def mysql_dbha_af_commiter():
     commit_ticket(p3_uncommit_tickets)
 
 
-# @register_periodic_task(run_every=crontab(minute="*"))
+@register_periodic_task(run_every=crontab(minute="*"))
 def mysql_dbha_af_schedule():
     """
     1. 每个 check_id 代表一台机器
@@ -160,7 +203,28 @@ def mysql_dbha_af_schedule():
             # ToDo 这个没写完
             # candidate_events_list = static_validate.validate_machine_share(candidate_events_list)
 
-            MySQLDBHAEvent.objects.filter(af_uuid=af_uuid).update(validated=True)
+            monitor_events: List[MonitorEvent] = []
+            for ev in MySQLDBHAEvent.objects.filter(af_uuid=af_uuid, validated=False):
+                monitor_events.append(
+                    MonitorEvent(
+                        event_name=MonitorEventType.MYSQL_DBHA_AUTOFIX_VALIDATE_FAILED,
+                        target=ev.ip,
+                        event=BaseEventBody(content=ev.validate_memo),
+                        dimension={
+                            "bk_cloud_id": ev.bk_cloud_id,
+                            "appid": ev.bk_biz_id,
+                            "cluster_domain": ev.immute_domain,
+                            "machine_type": ev.machine_type,
+                            "instance_role": ev.instance_role,
+                            "ip": ev.ip,
+                            "port": ev.port,
+                        },
+                        timestamp=0,
+                    )
+                )
+
+            if monitor_events:
+                BKMonitorV3EventApi.send_event(events=monitor_events)
 
             # 过滤掉机器所有实例没上报全的 event
             # 被排除的 event 留给下一轮

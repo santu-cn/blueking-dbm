@@ -22,15 +22,11 @@
       :min-width="150"
       :title="t('目标主机')">
       <template #default="{ row: data }: { row: RowData }">
-        {{ data.spider_old_ip_list[0].ip }}
-      </template>
-    </TicketInfoTableColumn>
-    <TicketInfoTableColumn
-      col-key="related_instance"
-      :min-width="150"
-      :title="t('关联实例')">
-      <template #default="{ row: data }: { row: RowData }">
-        {{ `${data.spider_old_ip_list[0].ip}:${data.spider_old_ip_list[0].port}` }}
+        <p
+          v-for="item in data.spider_old_ip_list"
+          :key="item.ip">
+          {{ item.ip }}
+        </p>
       </template>
     </TicketInfoTableColumn>
     <TicketInfoTableColumn
@@ -38,7 +34,7 @@
       :min-width="150"
       :title="t('实例角色')">
       <template #default="{ row: data }: { row: RowData }">
-        {{ data.switch_spider_role }}
+        {{ roleLabelMap[data.switch_spider_role] }}
       </template>
     </TicketInfoTableColumn>
     <TicketInfoTableColumn
@@ -54,11 +50,7 @@
       :min-width="150"
       :title="t('规格')">
       <template #default="{ row: data }: { row: RowData }">
-        {{
-          ticketDetails.details.specs[
-            data.resource_spec[`${data.switch_spider_role}_${data.spider_old_ip_list[0].ip}`].spec_id
-          ].name
-        }}
+        {{ ticketDetails.details.specs[data.resource_spec[data.switch_spider_role]?.spec_id]?.name || '--' }}
       </template>
     </TicketInfoTableColumn>
     <TicketInfoTableColumn
@@ -66,8 +58,7 @@
       :min-width="200"
       :title="t('资源标签')">
       <template #default="{ row: data }: { row: RowData }">
-        <template
-          v-if="data.resource_spec[`${data.switch_spider_role}_${data.spider_old_ip_list[0].ip}`]?.label_names?.length">
+        <template v-if="data.resource_spec[data.switch_spider_role]?.label_names?.length">
           <BkTag
             v-for="item in data.resource_spec.new_slave.label_names"
             :key="item">
@@ -97,6 +88,8 @@
 
   import InfoList, { Item as InfoItem } from '../../components/info-list/Index.vue';
 
+  type RowData = Props['ticketDetails']['details']['infos'][number];
+
   interface Props {
     ticketDetails: TicketModel<TendbCluster.ResourcePool.SpiderSwitchNodes>;
   }
@@ -110,5 +103,8 @@
 
   const { t } = useI18n();
 
-  type RowData = Props['ticketDetails']['details']['infos'][number];
+  const roleLabelMap = {
+    spider_master: 'Spider Master',
+    spider_slave: 'Spider Slave',
+  } as Record<string, string>;
 </script>

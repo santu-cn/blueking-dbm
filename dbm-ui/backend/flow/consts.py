@@ -86,6 +86,9 @@ MAX_SPIDER_MASTER_COUNT = 64
 MIN_SPIDER_MASTER_COUNT = 1
 MIN_SPIDER_SLAVE_COUNT = 1
 
+# 定义每个TenDB-Cluster集群最小spider-master数量，在单据提单场景
+MIN_SPIDER_MASTER_COUNT_IN_TICKET = 2
+
 # 定义TenDB-HA的最少proxy实例数量
 MIN_TENDB_PROXY_COUNT = 1
 
@@ -563,6 +566,7 @@ class RedisActuatorActionEnum(StrStructuredEnum):
     REPLICAS_FORCE_RESYNC = EnumField("replicas_force_resync", _("replicas_force_resync"))
     RESTART_EXPORTER = EnumField("restart_exporter", _("restart_exporter"))
     HOTKEY_ANALYSIS = EnumField("hotkey_analysis", _("hotkey_analysis"))
+    PROXY_REUSE = EnumField("proxy_reuse", _("proxy_reuse"))
 
 
 class MongoDBActuatorActionEnum(StrStructuredEnum):
@@ -1671,6 +1675,8 @@ class OracleDBActuatorActionEnum(StrStructuredEnum):
 
 
 class TendbSingleRestoreType(StrStructuredEnum):
-    REPLICATE_FROM_MASTER = EnumField("REPLICATE_FROM_MASTER", _("恢复数据并实时同步binlog"))
-    RESTORE_FROM_BACKUP = EnumField("RESTORE_FROM_BACKUP", _("从选择的备份中恢复"))
-    RESTORE_ONLY_STRUCT = EnumField("RESTORE_ONLY_STRUCT", _("下发备份表结构并恢复表结构"))
+    REPLICATE_WITH_STRUCT = EnumField("REPLICATE_WITH_STRUCT", _("主从同步表结构,需Binlog"))
+    REPLICATE_WITH_DATA = EnumField("REPLICATE_WITH_DATA", _("主从同步数据,需Binlog"))
+    RESTORE_FROM_FLOW_BACKUP = EnumField("RESTORE_FROM_FLOW_BACKUP", _("流程中实时发起表结构备份&恢复,没有主从同步"))
+    RESTORE_WITH_DATA = EnumField("RESTORE_FROM_BACKUP", _("包含数据的恢复,没有主从同步"))
+    RESTORE_WITH_STRUCT = EnumField("RESTORE_ONLY_STRUCT", _("仅表结构的恢复,没有主从同步"))
