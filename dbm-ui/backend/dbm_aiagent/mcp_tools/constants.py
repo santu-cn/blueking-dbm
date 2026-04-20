@@ -33,6 +33,7 @@ class DBMMcpTools(StrStructuredEnum):
     REDIS_QUERY_ALARM = EnumField("redis-query-alarm", "redis-query-alarm")
     REDIS_BILL = EnumField("redis-bill", "redis-bill")
     REDIS_JOB = EnumField("redis-job", "redis-job")
+    ES_QUERY_META = EnumField("es-query-meta", "es-query-meta")
 
 
 class DBMMCPTags(StrStructuredEnum):

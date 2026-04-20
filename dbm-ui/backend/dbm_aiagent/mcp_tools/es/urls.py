@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making 蓝鲸智云-DB管理系统(BlueKing-BK-DBM) available.
 Copyright (C) 2017-2023 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
-# common mcp tools
-urlpatterns = [
-    path("common/", include("backend.dbm_aiagent.mcp_tools.common.urls")),
-    path("mysql/", include("backend.dbm_aiagent.mcp_tools.mysql.urls")),
-    path("sqlserver/", include("backend.dbm_aiagent.mcp_tools.sqlserver.urls")),
-    path("redis/", include("backend.dbm_aiagent.mcp_tools.redis.urls")),
-    path("es/", include("backend.dbm_aiagent.mcp_tools.es.urls")),
-]
+from backend.dbm_aiagent.mcp_tools.es.views.query_meta import EsQueryMetaMcpToolsViewSet
+
+routers = DefaultRouter(trailing_slash=True)
+
+# 与 元数据相关的 query
+routers.register(r"", EsQueryMetaMcpToolsViewSet, basename="mcp-es-query-meta")
+
+urlpatterns = routers.urls
